@@ -41,7 +41,7 @@ export function WeatherWidget({ initialWeather }: WeatherWidgetProps) {
     }
 
     fetchWeatherForLocation();
-  }, []);
+  }, [unit]);
 
   const toggleUnit = async () => {
     const newUnit = unit === "celsius" ? "fahrenheit" : "celsius";
@@ -114,29 +114,22 @@ export function WeatherWidget({ initialWeather }: WeatherWidgetProps) {
       </Card>
 
       {/* Weekly Forecast */}
-      <Card>
-        <CardHeader>
-          <CardTitle>7-Day Forecast</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 gap-4">
-            {weather.daily.map((day) => (
-              <div
-                key={day.date}
-                className="flex flex-col items-center space-y-2 rounded-lg border p-4"
-              >
-                <div className="font-semibold">{day.day}</div>
-                <div className="text-3xl">{day.icon}</div>
-                <div className="text-sm font-medium">{day.high}°</div>
-                <div className="text-sm text-muted-foreground">{day.low}°</div>
-                <div className="text-xs text-center text-muted-foreground">
-                  {day.condition}
-                </div>
-              </div>
-            ))}
+      <div className="grid grid-cols-7 gap-4">
+        {weather.daily.map((day) => (
+          <div
+            key={day.date}
+            className="flex flex-col items-center space-y-2 rounded-lg border p-4 bg-card"
+          >
+            <div className="font-semibold">{day.day}</div>
+            <div className="text-3xl">{day.icon}</div>
+            <div className="text-sm font-medium">{day.high}°</div>
+            <div className="text-sm text-muted-foreground">{day.low}°</div>
+            <div className="text-xs text-center text-muted-foreground">
+              {day.condition}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        ))}
+      </div>
     </>
   );
 }

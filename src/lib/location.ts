@@ -19,20 +19,15 @@ export async function getLocation(): Promise<Location> {
         });
       });
 
-      // Reverse geocode to get city name using Nominatim (OpenStreetMap)
+      // Reverse geocode to get city name via API route (avoids CORS)
       let city: string | undefined;
       let country: string | undefined;
       try {
-        const reverseGeoUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}`;
-        const geoResponse = await fetch(reverseGeoUrl, {
-          headers: {
-            'User-Agent': 'KitchenDashboard/1.0'
-          }
-        });
+        const geoResponse = await fetch(`/api/geocode?lat=${position.coords.latitude}&lon=${position.coords.longitude}`);
         if (geoResponse.ok) {
           const geoData = await geoResponse.json();
-          city = geoData.address?.city || geoData.address?.town || geoData.address?.village || geoData.address?.county;
-          country = geoData.address?.country;
+          city = geoData.city;
+          country = geoData.country;
         }
       } catch (e) {
         console.log("Failed to reverse geocode:", e);
