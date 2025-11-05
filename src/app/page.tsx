@@ -5,6 +5,8 @@ import { getTodayEvents, getWeekEvents } from "@/lib/calendar";
 import { WeatherWidget } from "@/components/weather-widget";
 import { LogoIcon, LogoText } from "@/components/logo";
 
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   const latitude = parseFloat(process.env.NEXT_PUBLIC_LATITUDE || "37.7749");
   const longitude = parseFloat(process.env.NEXT_PUBLIC_LONGITUDE || "-122.4194");
