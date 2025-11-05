@@ -12,8 +12,14 @@ export interface CalendarEvent {
 }
 
 function getAuthClient() {
-  const credentialsPath = path.join(process.cwd(), "homer-calendar-access-creds.json");
-  const credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
+  let credentials;
+
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  } else {
+    const credentialsPath = path.join(process.cwd(), "homer-calendar-access-creds.json");
+    credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
+  }
 
   const auth = new google.auth.GoogleAuth({
     credentials,
