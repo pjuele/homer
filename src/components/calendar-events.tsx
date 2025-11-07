@@ -5,9 +5,10 @@ import { CalendarEvent } from "@/lib/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface CalendarEventsProps {
-  todayEvents: CalendarEvent[];
+  // Props no longer used but kept for compatibility during transition
+  todayEvents?: CalendarEvent[];
   todayEventsError?: string;
-  weekEvents: CalendarEvent[];
+  weekEvents?: CalendarEvent[];
   weekEventsError?: string;
 }
 
@@ -74,32 +75,62 @@ function CalendarCard({ title, error, events, showDay, loading }: CalendarCardPr
   );
 }
 
-export function CalendarEvents({
-  todayEvents,
-  todayEventsError,
-  weekEvents,
-  weekEventsError,
-}: CalendarEventsProps) {
-  const [mounted, setMounted] = useState(false);
+export function CalendarEvents({}: CalendarEventsProps) {
+  const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
+  const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>([]);
+  const [todayError, setTodayError] = useState<string>();
+  const [weekError, setWeekError] = useState<string>();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setMounted(true);
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    async function fetchCalendarData() {
+      try {
+        const [todayRes, weekRes] = await Promise.all([
+          fetch(`/api/calendar?type=today&timezone=${encodeURIComponent(timezone)}`),
+          fetch(`/api/calendar?type=week&timezone=${encodeURIComponent(timezone)}`),
+        ]);
+
+        if (todayRes.ok) {
+          const data: CalendarEvent[] = await todayRes.json();
+          setTodayEvents(data);
+        } else {
+          setTodayError("Failed to load today's events");
+        }
+
+        if (weekRes.ok) {
+          const data: CalendarEvent[] = await weekRes.json();
+          setWeekEvents(data);
+        } else {
+          setWeekError("Failed to load week events");
+        }
+      } catch (error) {
+        console.error("Error fetching calendar data:", error);
+        setTodayError("Failed to load today's events");
+        setWeekError("Failed to load week events");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchCalendarData();
   }, []);
 
   return (
     <div className="grid gap-8 md:grid-cols-2">
       <CalendarCard
         title="Today's Schedule"
-        error={todayEventsError}
+        error={todayError}
         events={todayEvents}
-        loading={!mounted}
+        loading={loading}
       />
       <CalendarCard
         title="This Week"
-        error={weekEventsError}
+        error={weekError}
         events={weekEvents}
         showDay={true}
-        loading={!mounted}
+        loading={loading}
       />
     </div>
   );

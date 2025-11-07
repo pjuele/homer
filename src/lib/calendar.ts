@@ -10,6 +10,35 @@ export interface CalendarEvent {
   color: string;
 }
 
+interface DateParts {
+  year: number;
+  month: string;
+  day: string;
+  offset: string;
+}
+
+function getDatePartsInTimezone(date: Date): DateParts {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  const tzOffset = -date.getTimezoneOffset();
+  const offsetHours = String(Math.floor(Math.abs(tzOffset) / 60)).padStart(2, "0");
+  const offsetMinutes = String(Math.abs(tzOffset) % 60).padStart(2, "0");
+  const offsetSign = tzOffset >= 0 ? "+" : "-";
+  const offset = `${offsetSign}${offsetHours}:${offsetMinutes}`;
+
+  return { year, month, day, offset };
+}
+
+function getDateInTimezone(timezone: string): Date {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: timezone }));
+}
+
+function formatDateTime(dateParts: DateParts, time: string): string {
+  return `${dateParts.year}-${dateParts.month}-${dateParts.day}T${time}${dateParts.offset}`;
+}
+
 function getAuthClient() {
   let credentials;
 
@@ -57,7 +86,7 @@ function getAuthClient() {
   }
 }
 
-export async function getTodayEvents(): Promise<CalendarEvent[]> {
+export async function getTodayEvents(timezone: string): Promise<CalendarEvent[]> {
   const auth = await getAuthClient();
   const calendar = google.calendar({ version: "v3", auth });
 
@@ -66,14 +95,16 @@ export async function getTodayEvents(): Promise<CalendarEvent[]> {
     throw new Error("GOOGLE_CALENDAR_ID not set in environment variables");
   }
 
-  const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const nowInTz = getDateInTimezone(timezone);
+  const dateParts = getDatePartsInTimezone(nowInTz);
+
+  const startOfDay = formatDateTime(dateParts, "00:00:00");
+  const endOfDay = formatDateTime(dateParts, "23:59:59");
 
   const response = await calendar.events.list({
     calendarId,
-    timeMin: startOfDay.toISOString(),
-    timeMax: endOfDay.toISOString(),
+    timeMin: startOfDay,
+    timeMax: endOfDay,
     singleEvents: true,
     orderBy: "startTime",
   });
@@ -89,7 +120,7 @@ export async function getTodayEvents(): Promise<CalendarEvent[]> {
   }));
 }
 
-export async function getWeekEvents(): Promise<CalendarEvent[]> {
+export async function getWeekEvents(timezone: string): Promise<CalendarEvent[]> {
   const auth = await getAuthClient();
   const calendar = google.calendar({ version: "v3", auth });
 
@@ -98,14 +129,23 @@ export async function getWeekEvents(): Promise<CalendarEvent[]> {
     throw new Error("GOOGLE_CALENDAR_ID not set in environment variables");
   }
 
-  const now = new Date();
-  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  const endOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
+  const nowInTz = getDateInTimezone(timezone);
+
+  const tomorrowDate = new Date(nowInTz);
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowParts = getDatePartsInTimezone(tomorrowDate);
+
+  const endWeekDate = new Date(nowInTz);
+  endWeekDate.setDate(endWeekDate.getDate() + 7);
+  const endWeekParts = getDatePartsInTimezone(endWeekDate);
+
+  const tomorrow = formatDateTime(tomorrowParts, "00:00:00");
+  const endOfWeek = formatDateTime(endWeekParts, "23:59:59");
 
   const response = await calendar.events.list({
     calendarId,
-    timeMin: tomorrow.toISOString(),
-    timeMax: endOfWeek.toISOString(),
+    timeMin: tomorrow,
+    timeMax: endOfWeek,
     singleEvents: true,
     orderBy: "startTime",
   });

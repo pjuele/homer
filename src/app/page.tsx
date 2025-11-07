@@ -1,6 +1,5 @@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getWeatherData } from "@/lib/weather";
-import { getTodayEvents, getWeekEvents } from "@/lib/calendar";
 import { WeatherWidget } from "@/components/weather-widget";
 import { LogoIcon, LogoText } from "@/components/logo";
 import { CalendarEvents } from "@/components/calendar-events";
@@ -12,24 +11,6 @@ export default async function Home() {
   const longitude = parseFloat(process.env.NEXT_PUBLIC_LONGITUDE || "-122.4194");
 
   const initialWeather = await getWeatherData(latitude, longitude);
-
-  let todayEvents: Awaited<ReturnType<typeof getTodayEvents>> = [];
-  let todayEventsError: string | undefined;
-  try {
-    todayEvents = await getTodayEvents();
-  } catch (error) {
-    console.error("Failed to load today's events:", error);
-    todayEventsError = error instanceof Error ? error.message : "Unknown error";
-  }
-
-  let weekEvents: Awaited<ReturnType<typeof getWeekEvents>> = [];
-  let weekEventsError: string | undefined;
-  try {
-    weekEvents = await getWeekEvents();
-  } catch (error) {
-    console.error("Failed to load week events:", error);
-    weekEventsError = error instanceof Error ? error.message : "Unknown error";
-  }
 
   return (
     <div className="min-h-screen bg-background p-8">
@@ -55,12 +36,7 @@ export default async function Home() {
 
         <WeatherWidget initialWeather={initialWeather} />
 
-        <CalendarEvents
-          todayEvents={todayEvents}
-          todayEventsError={todayEventsError}
-          weekEvents={weekEvents}
-          weekEventsError={weekEventsError}
-        />
+        <CalendarEvents />
       </div>
     </div>
   );
