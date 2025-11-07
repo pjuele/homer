@@ -1,9 +1,9 @@
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWeatherData } from "@/lib/weather";
 import { getTodayEvents, getWeekEvents } from "@/lib/calendar";
 import { WeatherWidget } from "@/components/weather-widget";
 import { LogoIcon, LogoText } from "@/components/logo";
+import { CalendarEvents } from "@/components/calendar-events";
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +12,24 @@ export default async function Home() {
   const longitude = parseFloat(process.env.NEXT_PUBLIC_LONGITUDE || "-122.4194");
 
   const initialWeather = await getWeatherData(latitude, longitude);
-  const todayEvents = await getTodayEvents();
-  const weekEvents = await getWeekEvents();
+
+  let todayEvents: Awaited<ReturnType<typeof getTodayEvents>> = [];
+  let todayEventsError: string | undefined;
+  try {
+    todayEvents = await getTodayEvents();
+  } catch (error) {
+    console.error("Failed to load today's events:", error);
+    todayEventsError = error instanceof Error ? error.message : "Unknown error";
+  }
+
+  let weekEvents: Awaited<ReturnType<typeof getWeekEvents>> = [];
+  let weekEventsError: string | undefined;
+  try {
+    weekEvents = await getWeekEvents();
+  } catch (error) {
+    console.error("Failed to load week events:", error);
+    weekEventsError = error instanceof Error ? error.message : "Unknown error";
+  }
 
   return (
     <div className="min-h-screen bg-background p-8">
@@ -39,51 +55,12 @@ export default async function Home() {
 
         <WeatherWidget initialWeather={initialWeather} />
 
-        <div className="grid gap-8 md:grid-cols-2">
-          {/* Today's Events */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Today&apos;s Schedule</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {todayEvents.map((event) => (
-                  <div key={event.id} className="flex items-center gap-3">
-                    <div className={`h-10 w-1 rounded ${event.color}`} />
-                    <div className="flex-1">
-                      <div className="font-medium">{event.title}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {event.start} - {event.end}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Week Events */}
-          <Card>
-            <CardHeader>
-              <CardTitle>This Week</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {weekEvents.map((event) => (
-                  <div key={event.id} className="flex items-center gap-3">
-                    <div className={`h-10 w-1 rounded ${event.color}`} />
-                    <div className="flex-1">
-                      <div className="font-medium">{event.title}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {event.day} • {event.start} - {event.end}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <CalendarEvents
+          todayEvents={todayEvents}
+          todayEventsError={todayEventsError}
+          weekEvents={weekEvents}
+          weekEventsError={weekEventsError}
+        />
       </div>
     </div>
   );

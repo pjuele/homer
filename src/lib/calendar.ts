@@ -5,28 +5,56 @@ import path from "path";
 export interface CalendarEvent {
   id: string;
   title: string;
-  start: string;
-  end: string;
-  day?: string;
+  startDateTime: string;
+  endDateTime: string;
   color: string;
 }
 
 function getAuthClient() {
   let credentials;
 
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-    credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-  } else {
-    const credentialsPath = path.join(process.cwd(), "homer-calendar-access-creds.json");
-    credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
+  try {
+    if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+      try {
+        credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+      } catch (error) {
+        throw new Error(
+          `Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON environment variable: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    } else {
+      const credentialsPath = path.join(process.cwd(), "homer-calendar-access-creds.json");
+
+      if (!fs.existsSync(credentialsPath)) {
+        throw new Error(
+          `Credentials file not found at ${credentialsPath}. Please provide either GOOGLE_SERVICE_ACCOUNT_JSON env var or the credentials file.`
+        );
+      }
+
+      try {
+        const fileContent = fs.readFileSync(credentialsPath, "utf-8");
+        credentials = JSON.parse(fileContent);
+      } catch (error) {
+        throw new Error(
+          `Failed to read or parse credentials file at ${credentialsPath}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+    });
+
+    return auth;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Failed to")) {
+      throw error;
+    }
+    throw new Error(
+      `Failed to initialize Google Auth client: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
-
-  const auth = new google.auth.GoogleAuth({
-    credentials,
-    scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
-  });
-
-  return auth;
 }
 
 export async function getTodayEvents(): Promise<CalendarEvent[]> {
@@ -55,8 +83,8 @@ export async function getTodayEvents(): Promise<CalendarEvent[]> {
   return events.map((event, index) => ({
     id: event.id || `event-${index}`,
     title: event.summary || "Untitled Event",
-    start: formatTime(event.start?.dateTime || event.start?.date || ""),
-    end: formatTime(event.end?.dateTime || event.end?.date || ""),
+    startDateTime: event.start?.dateTime || event.start?.date || "",
+    endDateTime: event.end?.dateTime || event.end?.date || "",
     color: getEventColor(index),
   }));
 }
@@ -87,27 +115,10 @@ export async function getWeekEvents(): Promise<CalendarEvent[]> {
   return events.map((event, index) => ({
     id: event.id || `event-${index}`,
     title: event.summary || "Untitled Event",
-    start: formatTime(event.start?.dateTime || event.start?.date || ""),
-    end: formatTime(event.end?.dateTime || event.end?.date || ""),
-    day: formatDay(event.start?.dateTime || event.start?.date || ""),
+    startDateTime: event.start?.dateTime || event.start?.date || "",
+    endDateTime: event.end?.dateTime || event.end?.date || "",
     color: getEventColor(index),
   }));
-}
-
-function formatTime(dateString: string): string {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
-
-function formatDay(dateString: string): string {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
 function getEventColor(index: number): string {

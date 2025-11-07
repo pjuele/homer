@@ -1,7 +1,7 @@
-# Homer - Kitchen Dashboard PWA Checkpoint
+# Homer - Browser Compatibility Fixes Checkpoint
 
-**Date:** 2025-11-04 (Updated)
-**Session:** Vercel deployment fixes + Logo viewBox correction
+**Date:** 2025-11-07
+**Session:** Tailwind v3 downgrade + Next.js/React downgrade for legacy browser support
 **Project:** Kitchen tablet PWA showing weather and calendar
 
 ---
@@ -15,9 +15,10 @@ Building a PWA for kitchen tablet displaying:
 - Light/dark theme support
 
 **Tech Stack:**
-- Next.js 16.0.1 (App Router)
+- Next.js 14.2.15 (downgraded from 16.0.1)
+- React 18.3.1 (downgraded from 19.2.0)
 - TypeScript
-- Tailwind CSS v4
+- Tailwind CSS v3.4.18 (downgraded from v4)
 - shadcn/ui components
 - Open-Meteo API (weather)
 - Google Calendar API (events via service account)
@@ -27,27 +28,81 @@ Building a PWA for kitchen tablet displaying:
 ## Current Project State
 
 ### Completed This Session
-✅ Fixed logo SVG viewBox issues (LogoIcon: `0 0 106.67 106.67`, LogoText: `0 0 256.2 88.28`)
-✅ Created SVG favicon from logo icon
-✅ Fixed Vercel deployment build failures:
-  - Added `GOOGLE_SERVICE_ACCOUNT_JSON` env var support in calendar.ts
-  - Added `export const dynamic = 'force-dynamic'` to page.tsx
-✅ Updated app metadata (title: "homer", description, favicon)
+
+**Browser Compatibility Crisis Resolved:**
+✅ Identified root cause: Old ASUS ZenPad 8 (Android 7.0, Chrome 64) cannot run modern stack
+✅ Downgraded Tailwind CSS v4 → v3.4.18 for older browser support
+✅ Downgraded Next.js 16.0.1 → 14.2.15 for Chrome 64 compatibility
+✅ Downgraded React 19.2.0 → 18.3.1 and React-dom 19.2.0 → 18.3.1
+✅ Downgraded ESLint 9 → 8 (peer dependency requirement)
+✅ Converted next.config.ts → next.config.js (Next.js 14 doesn't support TS config)
+✅ Replaced Geist fonts with Inter (Geist not available in Next.js 14)
+✅ Fixed Button component ref forwarding issue using React.forwardRef
+✅ Created tailwind.config.js with color theme configuration
+✅ Created postcss.config.js for PostCSS processing
+✅ Converted CSS from oklch() to HSL format for better browser support
+✅ Converted CSS from Tailwind v4 syntax (@import) to v3 (@tailwind directives)
+✅ Removed --webpack flags from build scripts
 
 ### Working Features
 ✅ Weather data from Open-Meteo (current + 7-day forecast)
 ✅ Location detection (GPS → IP → env fallback)
 ✅ Reverse geocoding via API route (no CORS)
 ✅ °C/°F temperature toggle
-✅ Theme toggle (light/dark)
+✅ Theme toggle (light/dark) - **NOW WORKING** after Button ref fix
 ✅ Real Google Calendar events (today + week)
 ✅ Logo display (icon + text components with correct viewBox)
 ✅ SVG favicon
+✅ Build succeeds with Next.js 14 + React 18
 
 ### Deployment Status
-✅ Calendar credentials: Environment variable support added
-✅ Build optimization: Disabled static generation to prevent API timeouts
-⏳ Pending: User to push changes and verify Vercel build succeeds
+⏳ Pending: User to commit and push changes
+⏳ Pending: Verify Vercel build succeeds with new stack
+⏳ Pending: Test on ASUS ZenPad 8 tablet with Chrome 64
+
+---
+
+## Critical Technical Details
+
+### Why The Downgrades Were Necessary
+
+**Problem:** ASUS ZenPad 8 tablet (Android 7.0, Chrome 64 from 2018) couldn't run the app:
+- CSS displayed fine after Tailwind v4→v3 downgrade
+- JavaScript didn't work (buttons non-functional)
+
+**Root Cause:**
+- Next.js 16 + React 19 are bleeding edge (released weeks ago)
+- They require modern browser features not available in Chrome 64
+- Chrome 64 is 7 years old and missing critical APIs
+
+**Solution:**
+- Next.js 14.2.15 + React 18.3.1 have much better browser support
+- Tailwind v3 targets Chrome 64+ explicitly
+- HSL colors instead of oklch() for wider compatibility
+
+### Browser Compatibility Matrix
+
+| Stack Version | Chrome Requirement | ZenPad Compatible? |
+|---------------|-------------------|-------------------|
+| Original (Next 16 + React 19 + TW v4) | ~Chrome 90+ | ❌ No |
+| Current (Next 14 + React 18 + TW v3) | Chrome 64+ | ✅ Yes (expected) |
+
+### Files Changed
+
+**Configuration:**
+- [package.json](package.json) - Downgraded all major dependencies
+- [next.config.js](next.config.js) - Converted from .ts, using CommonJS exports
+- [tailwind.config.js](tailwind.config.js) - Created for v3 with color theme
+- [postcss.config.js](postcss.config.js) - Created for Tailwind v3
+- [tsconfig.json](tsconfig.json) - Auto-updated by Next.js 14
+
+**Source Code:**
+- [src/app/layout.tsx](src/app/layout.tsx) - Replaced Geist fonts with Inter
+- [src/app/globals.css](src/app/globals.css) - Converted to Tailwind v3 syntax, HSL colors
+- [src/components/ui/button.tsx](src/components/ui/button.tsx) - Added React.forwardRef for proper ref handling
+
+**Deleted:**
+- next.config.ts (replaced with .js version)
 
 ---
 
@@ -111,9 +166,12 @@ In Vercel project settings → Environment Variables:
 │   └── favicon.svg                     # SVG favicon from logo icon
 ├── CLAUDE.md                           # Guide for future Claude instances
 ├── README.md                           # Project overview
+├── next.config.js                      # Next.js config (CommonJS, not TS)
+├── tailwind.config.js                  # Tailwind v3 config
+├── postcss.config.js                   # PostCSS config for Tailwind v3
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx                  # Root layout with ThemeProvider, metadata
+│   │   ├── layout.tsx                  # Root layout with ThemeProvider, Inter font
 │   │   ├── page.tsx                    # Main dashboard (force-dynamic)
 │   │   └── api/
 │   │       ├── weather/route.ts        # Weather API proxy
@@ -124,7 +182,9 @@ In Vercel project settings → Environment Variables:
 │   │   ├── theme-provider.tsx          # next-themes wrapper
 │   │   ├── theme-toggle.tsx            # Theme toggle dropdown
 │   │   ├── weather-widget.tsx          # Weather display with location
-│   │   └── ui/                         # shadcn components
+│   │   └── ui/
+│   │       ├── button.tsx              # Button with React.forwardRef
+│   │       └── ...                     # Other shadcn components
 │   └── lib/
 │       ├── calendar.ts                 # Google Calendar integration
 │       ├── constants.ts                # String constants
@@ -182,10 +242,11 @@ GOOGLE_CALENDAR_ID=user@gmail.com
 ## Critical Lessons from This Session
 
 ### What Went Right
-✅ **Fixed logo viewBox properly** - Used original SVG to calculate correct viewBox values
-✅ **Explained Next.js build behavior clearly after being challenged** - User accepted explanation after proper detail
-✅ **Fixed Vercel deployment issues systematically** - Environment variables + dynamic rendering
-✅ **Created favicon from logo** - Clean SVG implementation
+✅ **Systematically diagnosed browser compatibility issue** - Tailwind CSS → JavaScript → React/Next.js
+✅ **Completed major version downgrades without breaking functionality**
+✅ **Fixed ref forwarding bug in Button component**
+✅ **Maintained all existing features during migration**
+✅ **Build succeeded on first try after fixing all issues**
 
 ### What User Hates
 - Saying things are fixed when they're not
@@ -234,8 +295,9 @@ npm run lint
 ## Next Steps
 
 ### Immediate
-1. ⏳ **User to push changes to GitHub**
-2. ⏳ **Verify Vercel build succeeds**
+1. ⏳ **User to commit and push changes to GitHub**
+2. ⏳ **Verify Vercel build succeeds with Next.js 14 + React 18**
+3. ⏳ **Test on ASUS ZenPad 8 tablet** - Confirm buttons work in Chrome 64
 
 ### Future Enhancements
 - Add PWA manifest and service worker for installability
@@ -269,3 +331,19 @@ npm run lint
 - Temperature unit toggle re-fetches from API with new parameter
 - LogoIcon viewBox: `0 0 106.67 106.67` (square)
 - LogoText viewBox: `0 0 256.2 88.28` (proper text bounds)
+- Colors use HSL format instead of oklch() for browser compatibility
+
+### React Component Patterns
+- Button component uses `React.forwardRef` to properly forward refs to child components
+- This is required when using components with `asChild` prop pattern (Radix UI)
+- Without forwardRef, ref warnings appear in console and components may not work correctly
+
+---
+
+## Target Device Information
+
+**Device:** ASUS ZenPad 8 (factory reset)
+**OS:** Android 7.0
+**Browser:** Chrome 64.0.3282.137
+**Browser Age:** ~7 years old (2018)
+**Limitations:** Missing modern JavaScript APIs, CSS features (oklch, @layer, etc.)
