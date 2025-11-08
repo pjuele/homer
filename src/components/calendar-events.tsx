@@ -94,7 +94,13 @@ export function CalendarEvents({}: CalendarEventsProps) {
 
         if (todayRes.ok) {
           const data: CalendarEvent[] = await todayRes.json();
-          setTodayEvents(data);
+          const now = new Date();
+          const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+          const filteredEvents = data.filter((event) => {
+            const eventStart = new Date(event.startDateTime);
+            return eventStart > oneHourAgo;
+          });
+          setTodayEvents(filteredEvents);
         } else {
           setTodayError("Failed to load today's events");
         }
