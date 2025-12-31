@@ -79,13 +79,14 @@ export async function getWeatherData(
       windSpeed: Math.round(data.current.wind_speed_10m),
       icon: currentWeatherInfo.icon,
     },
-    daily: data.daily.time.slice(0, 7).map((date: string, index: number) => {
-      const weatherInfo = getWeatherInfo(data.daily.weather_code[index]);
+    daily: data.daily.time.slice(1, 8).map((date: string, index: number) => {
+      const actualIndex = index + 1;
+      const weatherInfo = getWeatherInfo(data.daily.weather_code[actualIndex]);
       return {
         date,
         day: getDayName(date),
-        high: Math.round(data.daily.temperature_2m_max[index]),
-        low: Math.round(data.daily.temperature_2m_min[index]),
+        high: Math.round(data.daily.temperature_2m_max[actualIndex]),
+        low: Math.round(data.daily.temperature_2m_min[actualIndex]),
         condition: weatherInfo.condition,
         icon: weatherInfo.icon,
       };

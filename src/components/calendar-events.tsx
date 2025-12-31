@@ -1,15 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import { CalendarEvent } from "@/lib/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface CalendarEventsProps {
-  // Props no longer used but kept for compatibility during transition
-  todayEvents?: CalendarEvent[];
-  todayEventsError?: string;
-  weekEvents?: CalendarEvent[];
-  weekEventsError?: string;
+export interface CalendarEventsRef {
+  refresh: () => Promise<void>;
 }
 
 function formatTime(dateString: string): string {
@@ -75,53 +71,61 @@ function CalendarCard({ title, error, events, showDay, loading }: CalendarCardPr
   );
 }
 
-export function CalendarEvents({}: CalendarEventsProps) {
+export const CalendarEvents = forwardRef<CalendarEventsRef, object>(function CalendarEvents(props, ref) {
   const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
   const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>([]);
   const [todayError, setTodayError] = useState<string>();
   const [weekError, setWeekError] = useState<string>();
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchCalendarData = useCallback(async () => {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    async function fetchCalendarData() {
-      try {
-        const [todayRes, weekRes] = await Promise.all([
-          fetch(`/api/calendar?type=today&timezone=${encodeURIComponent(timezone)}`),
-          fetch(`/api/calendar?type=week&timezone=${encodeURIComponent(timezone)}`),
-        ]);
+    try {
+      const [todayRes, weekRes] = await Promise.all([
+        fetch(`/api/calendar?type=today&timezone=${encodeURIComponent(timezone)}`),
+        fetch(`/api/calendar?type=week&timezone=${encodeURIComponent(timezone)}`),
+      ]);
 
-        if (todayRes.ok) {
-          const data: CalendarEvent[] = await todayRes.json();
-          const now = new Date();
-          const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-          const filteredEvents = data.filter((event) => {
-            const eventStart = new Date(event.startDateTime);
-            return eventStart > oneHourAgo;
-          });
-          setTodayEvents(filteredEvents);
-        } else {
-          setTodayError("Failed to load today's events");
-        }
-
-        if (weekRes.ok) {
-          const data: CalendarEvent[] = await weekRes.json();
-          setWeekEvents(data);
-        } else {
-          setWeekError("Failed to load week events");
-        }
-      } catch (error) {
-        console.error("Error fetching calendar data:", error);
+      if (todayRes.ok) {
+        const data: CalendarEvent[] = await todayRes.json();
+        const now = new Date();
+        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+        const filteredEvents = data.filter((event) => {
+          const eventStart = new Date(event.startDateTime);
+          return eventStart > oneHourAgo;
+        });
+        setTodayEvents(filteredEvents);
+        setTodayError(undefined);
+      } else {
         setTodayError("Failed to load today's events");
-        setWeekError("Failed to load week events");
-      } finally {
-        setLoading(false);
       }
-    }
 
-    fetchCalendarData();
+      if (weekRes.ok) {
+        const data: CalendarEvent[] = await weekRes.json();
+        setWeekEvents(data);
+        setWeekError(undefined);
+      } else {
+        setWeekError("Failed to load week events");
+      }
+    } catch (error) {
+      console.error("Error fetching calendar data:", error);
+      setTodayError("Failed to load today's events");
+      setWeekError("Failed to load week events");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchCalendarData();
+  }, [fetchCalendarData]);
+
+  useImperativeHandle(ref, () => ({
+    refresh: async () => {
+      await fetchCalendarData();
+    }
+  }), [fetchCalendarData]);
 
   return (
     <div className="grid gap-8 md:grid-cols-2">
@@ -140,4 +144,4 @@ export function CalendarEvents({}: CalendarEventsProps) {
       />
     </div>
   );
-}
+});

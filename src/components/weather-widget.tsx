@@ -1,22 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getLocation, type Location } from "@/lib/location";
 import type { WeatherData } from "@/lib/weather";
 
-interface WeatherWidgetProps {
-  initialWeather: WeatherData;
+export interface WeatherWidgetRef {
+  refresh: () => Promise<void>;
 }
 
-export function WeatherWidget({ initialWeather }: WeatherWidgetProps) {
-  const [weather, setWeather] = useState<WeatherData>(initialWeather);
+export const WeatherWidget = forwardRef<WeatherWidgetRef, object>(function WeatherWidget(props, ref) {
+  const [weather, setWeather] = useState<WeatherData | null>(null);
   const [location, setLocation] = useState<Location | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [unit, setUnit] = useState<"celsius" | "fahrenheit">("celsius");
 
-  async function fetchWeather(loc: Location, tempUnit: "celsius" | "fahrenheit") {
+  const fetchWeather = useCallback(async (loc: Location, tempUnit: "celsius" | "fahrenheit") => {
     const response = await fetch(
       `/api/weather?lat=${loc.latitude}&lon=${loc.longitude}&unit=${tempUnit}`
     );
@@ -24,24 +24,32 @@ export function WeatherWidget({ initialWeather }: WeatherWidgetProps) {
       const data = await response.json();
       setWeather(data);
     }
-  }
+  }, []);
+
+  const fetchWeatherForLocation = useCallback(async () => {
+    setLoading(true);
+    try {
+      const loc = await getLocation();
+      setLocation(loc);
+      await fetchWeather(loc, unit);
+    } catch (error) {
+      console.error("Failed to fetch weather:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [unit, fetchWeather]);
 
   useEffect(() => {
-    async function fetchWeatherForLocation() {
-      setLoading(true);
-      try {
-        const loc = await getLocation();
-        setLocation(loc);
-        await fetchWeather(loc, unit);
-      } catch (error) {
-        console.error("Failed to fetch weather:", error);
-      } finally {
-        setLoading(false);
+    fetchWeatherForLocation();
+  }, [fetchWeatherForLocation]);
+
+  useImperativeHandle(ref, () => ({
+    refresh: async () => {
+      if (location) {
+        await fetchWeather(location, unit);
       }
     }
-
-    fetchWeatherForLocation();
-  }, [unit]);
+  }), [location, unit, fetchWeather]);
 
   const toggleUnit = async () => {
     const newUnit = unit === "celsius" ? "fahrenheit" : "celsius";
@@ -82,7 +90,7 @@ export function WeatherWidget({ initialWeather }: WeatherWidgetProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {loading || !weather ? (
             <div className="flex items-center justify-center py-8">
               <div className="text-muted-foreground">Loading weather...</div>
             </div>
@@ -114,22 +122,24 @@ export function WeatherWidget({ initialWeather }: WeatherWidgetProps) {
       </Card>
 
       {/* Weekly Forecast */}
-      <div className="grid grid-cols-7 gap-4">
-        {weather.daily.map((day) => (
-          <div
-            key={day.date}
-            className="flex flex-col items-center space-y-2 rounded-lg border p-4 bg-card"
-          >
-            <div className="font-semibold">{day.day}</div>
-            <div className="text-3xl">{day.icon}</div>
-            <div className="text-sm font-medium">{day.high}°</div>
-            <div className="text-sm text-muted-foreground">{day.low}°</div>
-            <div className="text-xs text-center text-muted-foreground">
-              {day.condition}
+      {weather && (
+        <div className="grid grid-cols-7 gap-4">
+          {weather.daily.map((day) => (
+            <div
+              key={day.date}
+              className="flex flex-col items-center space-y-2 rounded-lg border p-4 bg-card"
+            >
+              <div className="font-semibold">{day.day}</div>
+              <div className="text-3xl">{day.icon}</div>
+              <div className="text-sm font-medium">{day.high}°</div>
+              <div className="text-sm text-muted-foreground">{day.low}°</div>
+              <div className="text-xs text-center text-muted-foreground">
+                {day.condition}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </>
   );
-}
+});

@@ -1,16 +1,42 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getWeatherData } from "@/lib/weather";
 import { WeatherWidget } from "@/components/weather-widget";
 import { LogoIcon, LogoText } from "@/components/logo";
 import { CalendarEvents } from "@/components/calendar-events";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 
-export const dynamic = 'force-dynamic';
+function formatLastUpdated(date: Date): string {
+  return date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 
-export default async function Home() {
-  const latitude = parseFloat(process.env.NEXT_PUBLIC_LATITUDE || "37.7749");
-  const longitude = parseFloat(process.env.NEXT_PUBLIC_LONGITUDE || "-122.4194");
+export default function Home() {
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const weatherRef = useRef<{ refresh: () => Promise<void> }>(null);
+  const calendarRef = useRef<{ refresh: () => Promise<void> }>(null);
 
-  const initialWeather = await getWeatherData(latitude, longitude);
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    setLastUpdated(new Date());
+    await Promise.all([
+      weatherRef.current?.refresh(),
+      calendarRef.current?.refresh()
+    ]);
+    setIsRefreshing(false);
+  }, []);
+
+  // Auto-refresh every 10 minutes
+  useEffect(() => {
+    const interval = setInterval(handleRefresh, 600000);
+    return () => clearInterval(interval);
+  }, [handleRefresh]);
 
   return (
     <div className="min-h-screen bg-background p-8">
@@ -22,21 +48,38 @@ export default async function Home() {
               <LogoIcon className="h-12 w-12" />
               <LogoText className="h-8" />
             </div>
-            <p className="text-muted-foreground mt-2">
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </p>
+            <div className="flex items-center gap-3 mt-2">
+              <p className="text-muted-foreground">
+                {new Date().toLocaleDateString(undefined, {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
+              <span className="text-muted-foreground">•</span>
+              <p className="text-sm text-muted-foreground">
+                Updated at {formatLastUpdated(lastUpdated)}
+              </p>
+            </div>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title="Refresh all data"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+            <ThemeToggle />
+          </div>
         </div>
 
-        <WeatherWidget initialWeather={initialWeather} />
+        <WeatherWidget ref={weatherRef} />
 
-        <CalendarEvents />
+        <CalendarEvents ref={calendarRef} />
       </div>
     </div>
   );
